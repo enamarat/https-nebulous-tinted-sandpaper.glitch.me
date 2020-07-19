@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Welcome to HyperDev!</title>
+    <meta name="description" content="A cool thing made with HyperDev">
+    <link id="favicon" rel="icon" href="https://hyperdev.com/favicon-app.ico" type="image/x-icon">
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/public/style.css">
+  </head>
+  <body>
+    <header>
+      <h1 id="projectTitle"></h1>
+    </header>
+    <center>
+      <div id="submitNewIssue">
+        <br>
+        <h3>Submit a new issue:</h3>
+        <form id="newIssue" method="post" action="/api">
+          <input type="text" name="issue_title" placeholder="*Title" style="width: 320px; margin-bottom: 3px;"><br>
+          <textarea type="text" name="issue_text" placeholder="*Text" style="width: 320px; height: 100px;"></textarea><br>
+          <input type="text" name="created_by" placeholder="*Created by" style="width: 100px">
+          <input type="text" name="assigned_to" placeholder="(opt)Assigned to" style="width: 100px">
+          <input type="text" name="status_text" placeholder="(opt)Status text" style="width: 100px"><br>
+          <button type="submit">Submit Issue</button>
+        </form>
+      </div>
+      
+      <div id="issueDisplay"></div>
+      
+      <div id="updateExistingIssue">
+         <form id="updateIssue" method="put" action="/api">
+          <input id="update-title" type="text" name="issue_title" placeholder="*Title" style="width: 320px; margin-bottom: 3px;"><br>
+          <textarea id="update-text" type="text" name="issue_text" placeholder="*Text" style="width: 320px; height: 100px;"></textarea><br>
+          <input id="update-created_by" type="text" name="created_by" placeholder="*Created by" style="width: 100px">
+          <input id="update-assigned_to" type="text" name="assigned_to" placeholder="(opt)Assigned to" style="width: 100px">
+          <input id="update-status_text" type="text" name="status_text" placeholder="(opt)Status text" style="width: 100px"><br>
+          <button id="send-updated-data" type="submit">Update Issue</button> <button id="close">Close update form</button>
+        </form>
+      </div>
+      
+      <hr style="margin: 50px; margin-top: 200px">
+    </center>
+    
+    <script src="https://code.jquery.com/jquery-2.2.1.min.js"
+            integrity="sha256-gvQgAFzTH6trSrAWoH1iPo9Xc96QxSZ3feW6kem+O00="
+            crossorigin="anonymous"></script>
+    <script>
+      $(function() {
+        var currentProject = window.location.pathname.replace(/\//g, "");;
+        var url = "/api/issues/"+currentProject;
+        $('#projectTitle').text('All issues for: '+currentProject)
+        $.ajax({
+          type: "GET",
+          url: url,
+          data: {queryString: window.location.search.substring(1)},
+          success: function(data)
+          {
+            var issues= [];
+            data.forEach(function(ele) {
+              console.log(ele);
+              var openstatus;
+              (ele.open) ? openstatus = 'open' : openstatus = 'closed';
+              var single = [
+                '<div class="issue '+openstatus+'">',
+                '<p class="id">id: '+ele._id+'</p>',
+                '<h3>'+ele.issue_title+' -  ('+openstatus+')</h3>',
+                '<br>',
+                '<p>'+ele.issue_text+'</p>',
+                '<p>'+ele.status_text+'</p>',
+                '<br>',
+                '<p class="id"><b>Created by:</b> '+ele.created_by+'  <b>Assigned to:</b> '+ele.assigned_to,
+                '<p class="id"><b>Created on:</b> '+ele.created_on+'  <b>Last updated:</b> '+ele.updated_on,
+                '<br><a href="#" class="closeIssue" id="'+ele._id+'">close?</a> <a href="#" class="deleteIssue" id="'+ele._id+'">delete?</a> <a href="#" class="updateIssue" id="'+ele._id+'">update?</a>',
+                '</div>'
+                
+              ];
+              issues.push(single.join(''));
+            });
+            $('#issueDisplay').html(issues.join(''));
+          }
+        });
+        
+        $('#newIssue').submit(function(e){
+          e.preventDefault();
+          $(this).attr('action', "/api/issues/" + currentProject);
+          $.ajax({
+            type: "POST",
+            url: url,
+            data: $(this).serialize(),
+            success: function(data) { 
+              if (data === `data for required field is not provided`) {
+                console.log(data);
+                  alert(data); 
+              }
+              window.location.reload(true); }
+          });
+        });
+        
+        $('#issueDisplay').on('click','.closeIssue', function(e) {
+          var url = "/api/issues/"+currentProject;
+          $.ajax({
+            type: "PUT",
+            url: url,
+            data: {_id: $(this).attr('id'), open: false},
+            success: function(data) { alert(data.message); window.location.reload(true); }
+          });
+          e.preventDefault();
+        });
+        $('#issueDisplay').on('click','.deleteIssue', function(e) {
+          var url = "/api/issues/"+currentProject;
+          $.ajax({
+            type: "DELETE",
+            url: url,
+            data: {_id: $(this).attr('id')},
+            success: function(data) { alert(data); window.location.reload(true); }
+          });
+          e.preventDefault();
+        });
+        
+        let id = null;
+        // reveal update form
+        $('#issueDisplay').on('click','.updateIssue', function(e) {
+            $('#updateExistingIssue').css("display", "block");
+            $('#updateExistingIssue').css("background-color", "grey");
+            $('#updateExistingIssue').css("top", e.pageY-120);
+            $('#updateExistingIssue').css("left", e.pageX+50);
+            id = $(e.target).attr('id');
+            e.preventDefault();
+          });
+
+              
+        // hide update form
+         $('#updateExistingIssue').on('click','#close', function(e) {
+            $('#updateExistingIssue').css("display", "none");
+            e.preventDefault();
+         });
+        
+        // submit updated data
+        $('#updateExistingIssue').on('click', '#send-updated-data', function(e) {
+           var url = "/api/issues/"+currentProject;
+       
+            $.ajax({
+              type: "PUT",
+              url: url,
+              data: {
+                _id: id,
+                issue_title: $("#update-title").val(),
+                issue_text: $("#update-text").val(),
+                created_by: $("#update-created_by").val(),
+                assigned_to: $("#update-assigned_to").val(),
+                status_text: $("#update-status_text").val()
+                    },
+              success: function(data) { 
+                console.log(data);
+                alert(data.message); window.location.reload(true); 
+              }
+            });
+          
+            $('#close').click();
+            e.preventDefault();
+        });
+        
+        
+      });
+   </script>
+  </body>
+</html>
